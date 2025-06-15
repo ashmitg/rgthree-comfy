@@ -7,7 +7,7 @@ from .constants import get_category, get_name
 from .power_prompt_utils import get_lora_by_filename
 from .utils import FlexibleOptionalInputType, any_type
 from .server.utils_info import get_model_info
-from .log import log_node_warn
+from .log import log_node_warn, log_node_info
 
 NODE_NAME = get_name('Power Lora Loader')
 
@@ -39,7 +39,14 @@ class RgthreePowerLoraLoader:
     """Loops over the provided loras in kwargs and applies valid ones."""
     for key, value in kwargs.items():
       key = key.upper()
-      if key.startswith('LORA_') and 'on' in value and 'lora' in value and 'strength' in value:
+      # Handle API format where lora is passed directly as a string path
+      if key.startswith('LORA_') and isinstance(value, str):
+        lora = get_lora_by_filename(value, log_node=self.NAME)
+        if lora is not None:
+          model, clip = LoraLoader().load_lora(model, clip, lora, 1.0, 1.0 if clip is not None else 0)
+          log_node_info(NODE_NAME, f'Applied lora {value} with default strength 1.0')
+      # Handle regular object format from UI
+      elif key.startswith('LORA_') and isinstance(value, dict) and 'on' in value and 'lora' in value and 'strength' in value:
         strength_model = value['strength']
         # If we just passed one strength value, then use it for both, if we passed a strengthTwo
         # as well, then our `strength` will be for the model, and `strengthTwo` for clip.
